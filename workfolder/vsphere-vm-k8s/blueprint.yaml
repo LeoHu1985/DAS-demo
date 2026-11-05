@@ -1,0 +1,96 @@
+tosca_definitions_version: dell_1_1
+
+description: >-
+  Deploy a 5-node Kubernetes cluster (1 control plane + 4 workers) on vCenter by
+  cloning an existing Ubuntu VM. All nodes are placed on the same ESXi host,
+  datastore, and port group, receive user-supplied names and static IPs, and are
+  bootstrapped with containerd + kubeadm and the Flannel CNI over SSH.
+
+imports:
+  - dell/types/types.yaml
+  - plugin:vsphere-plugin?version= >=3.0.0.0,<4.0.0.0
+  - plugin:fabric-plugin?version= >=3.3.0.0,<4.0.0.0
+  - inputs.yaml
+  - cluster/definitions.yaml
+  - capabilities.yaml
+
+labels:
+  category:
+    values:
+      - infrastructure
+  platform:
+    values:
+      - vsphere
+
+blueprint_labels:
+  vendor:
+    values:
+      - dell
+  blueprint_type:
+    values:
+      - kubernetes
+  target:
+    values:
+      - vsphere
+
+input_groups:
+  connection:
+    display_label: vCenter Connection
+    collapsible: true
+    index: 0
+    inputs:
+      - vsphere_secret_name
+  placement:
+    display_label: Template and Placement
+    collapsible: true
+    index: 1
+    inputs:
+      - source_vm_name
+      - target_datacenter
+      - target_cluster
+      - target_host_name
+      - target_datastore
+      - resource_pool_name
+      - vm_cpus
+      - vm_memory_mb
+  network:
+    display_label: Network
+    collapsible: true
+    index: 2
+    inputs:
+      - network_name
+      - switch_distributed
+      - network_cidr
+      - gateway
+      - dns_servers
+      - domain
+  nodes:
+    display_label: Cluster Nodes
+    collapsible: true
+    index: 3
+    inputs:
+      - master_vm_name
+      - master_ip
+      - worker1_vm_name
+      - worker1_ip
+      - worker2_vm_name
+      - worker2_ip
+      - worker3_vm_name
+      - worker3_ip
+      - worker4_vm_name
+      - worker4_ip
+  credentials:
+    display_label: Guest OS Credentials
+    collapsible: true
+    index: 4
+    inputs:
+      - vm_username
+      - vm_password_secret
+  kubernetes:
+    display_label: Kubernetes
+    collapsible: true
+    index: 5
+    inputs:
+      - k8s_version
+      - pod_network_cidr
+      - cni_manifest_url

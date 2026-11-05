@@ -1,0 +1,12 @@
+{
+  "vsphere_secret_name": "vsphere_credentials",
+  "source_vm_name": "win2022-golden",
+  "source_host_name": "esxi01.dap.demo.local",
+  "target_vm_name": "win2022-clone-01",
+  "target_datacenter": "Datacenter",
+  "target_cluster": "Cluster01",
+  "target_host_name": "esxi02.dap.demo.local",
+  "target_datastore": "Datastore1",
+  "resource_pool_name": "Resources",
+  "power_on": true
+}

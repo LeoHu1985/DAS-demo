@@ -1,0 +1,425 @@
+inputs:
+
+  # -- vCenter Connection ------------------------------------------------
+
+  vsphere_secret_name:
+    type: secret_key
+    hidden: false
+    allow_update: false
+    display_label: vCenter Credentials
+    description: Secret holding the vCenter login (host, port, username, password, allow_insecure, auto_placement, certificate_data).
+    constraints:
+      - type: vsphere
+        error_message: "Select a secret of type vsphere containing the vCenter login"
+    display:
+      group: connection
+      index: 0
+
+  # -- Template and Placement --------------------------------------------
+
+  source_vm_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Template VM
+    description: Existing Ubuntu VM in vCenter that is cloned for every Kubernetes node.
+    default: LinuxVM-01
+    constraints:
+      - pattern: ^(?!\s)(?!.*\s$).+$
+        error_message: "Template VM name cannot be empty or have leading/trailing whitespace"
+    display:
+      group: placement
+      index: 0
+
+  target_datacenter:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Datacenter
+    description: vCenter datacenter that hosts the template VM and the new nodes.
+    default: Migration Datacenter
+    constraints:
+      - pattern: ^(?!\s)(?!.*\s$).+$
+        error_message: "Datacenter name cannot be empty or have leading/trailing whitespace"
+    display:
+      group: placement
+      index: 1
+
+  target_cluster:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: vSphere Cluster
+    description: vSphere cluster that contains the target ESXi host.
+    default: Cluster
+    constraints:
+      - pattern: ^(?!\s)(?!.*\s$).+$
+        error_message: "Cluster name cannot be empty or have leading/trailing whitespace"
+    display:
+      group: placement
+      index: 2
+
+  target_host_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: ESXi Host
+    description: ESXi host (as named in vCenter) for all nodes - the same host that runs the template VM.
+    default: esxi04.demo.local
+    constraints:
+      - pattern: ^(?!\s)(?!.*\s$)[A-Za-z0-9.\-]+$
+        error_message: "Host name may contain only letters, numbers, dots, and hyphens"
+    display:
+      group: placement
+      index: 3
+
+  target_datastore:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Datastore
+    description: Datastore for the nodes' disks (must be reachable from the ESXi host).
+    default: esxi04-local-256GB
+    constraints:
+      - pattern: ^(?!\s)(?!.*\s$).+$
+        error_message: "Datastore name cannot be empty or have leading/trailing whitespace"
+    display:
+      group: placement
+      index: 4
+
+  resource_pool_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Resource Pool
+    description: Resource pool for the nodes. Use "Resources" for the cluster's root pool.
+    default: Resources
+    constraints:
+      - pattern: ^(?!\s)(?!.*\s$).+$
+        error_message: "Resource pool cannot be empty; use Resources for the root pool"
+    display:
+      group: placement
+      index: 5
+
+  vm_cpus:
+    type: integer
+    hidden: false
+    allow_update: false
+    display_label: vCPUs per Node
+    description: Number of vCPUs for each node. kubeadm requires at least 2.
+    default: 2
+    constraints:
+      - greater_or_equal: 2
+        error_message: "Kubernetes nodes need at least 2 vCPUs"
+      - less_or_equal: 32
+        error_message: "Maximum 32 vCPUs per node"
+    display:
+      group: placement
+      index: 6
+
+  vm_memory_mb:
+    type: integer
+    hidden: false
+    allow_update: false
+    display_label: Memory per Node (MB)
+    description: RAM in MB for each node. kubeadm requires at least 2048 MB.
+    default: 4096
+    constraints:
+      - greater_or_equal: 2048
+        error_message: "Kubernetes nodes need at least 2048 MB of memory"
+      - less_or_equal: 262144
+        error_message: "Maximum 262144 MB of memory per node"
+    display:
+      group: placement
+      index: 7
+
+  # -- Network -----------------------------------------------------------
+
+  network_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Port Group
+    description: vSphere port group used by the template VM; every node gets one NIC on it.
+    default: VM Network
+    constraints:
+      - pattern: ^(?!\s)(?!.*\s$).+$
+        error_message: "Port group name cannot be empty or have leading/trailing whitespace"
+    display:
+      group: network
+      index: 0
+
+  switch_distributed:
+    type: boolean
+    hidden: false
+    allow_update: false
+    display_label: Distributed Switch
+    description: Set to true only if the port group is on a vSphere Distributed Switch.
+    default: false
+    display:
+      group: network
+      index: 1
+
+  network_cidr:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Network CIDR
+    description: Network block of the node IPs in CIDR notation (e.g. 172.20.0.0/24) - not a node IP.
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\/(3[0-2]|[12]?\d)$
+        error_message: "Must be a valid CIDR block (e.g. 172.20.0.0/24)"
+    display:
+      group: network
+      index: 2
+
+  gateway:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Default Gateway
+    description: Default gateway for the node network (e.g. 172.20.0.1).
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$
+        error_message: "Must be a valid IPv4 address"
+    display:
+      group: network
+      index: 3
+
+  dns_servers:
+    type: list
+    item_type: string
+    hidden: false
+    allow_update: false
+    display_label: DNS Servers
+    description: DNS servers for the nodes (e.g. ["172.20.0.10"]). Nodes must resolve and reach pkgs.k8s.io, the Ubuntu mirrors, and github.com.
+    constraints:
+      - min_length: 1
+        error_message: "Provide at least one DNS server"
+    display:
+      group: network
+      index: 4
+
+  domain:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: DNS Domain
+    description: DNS domain applied by vSphere guest customization (e.g. demo.local).
+    default: demo.local
+    constraints:
+      - pattern: ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$
+        error_message: "Must be a valid DNS domain (e.g. demo.local)"
+    display:
+      group: network
+      index: 5
+
+  # -- Cluster Nodes -----------------------------------------------------
+
+  master_vm_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Control Plane VM Name
+    description: VM name and hostname of the control-plane node. Lowercase letters, numbers, and hyphens.
+    default: k8s-master-01
+    constraints:
+      - pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+        error_message: "1-63 lowercase letters, numbers, or hyphens, not starting/ending with a hyphen"
+    display:
+      group: nodes
+      index: 0
+
+  master_ip:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Control Plane IP
+    description: Static IPv4 address of the control-plane node (inside Network CIDR).
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$
+        error_message: "Must be a valid IPv4 address"
+    display:
+      group: nodes
+      index: 1
+
+  worker1_vm_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 1 VM Name
+    description: VM name and hostname of the first worker node. Lowercase letters, numbers, and hyphens.
+    default: k8s-worker-01
+    constraints:
+      - pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+        error_message: "1-63 lowercase letters, numbers, or hyphens, not starting/ending with a hyphen"
+    display:
+      group: nodes
+      index: 2
+
+  worker1_ip:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 1 IP
+    description: Static IPv4 address of the first worker node (inside Network CIDR).
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$
+        error_message: "Must be a valid IPv4 address"
+    display:
+      group: nodes
+      index: 3
+
+  worker2_vm_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 2 VM Name
+    description: VM name and hostname of the second worker node. Lowercase letters, numbers, and hyphens.
+    default: k8s-worker-02
+    constraints:
+      - pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+        error_message: "1-63 lowercase letters, numbers, or hyphens, not starting/ending with a hyphen"
+    display:
+      group: nodes
+      index: 4
+
+  worker2_ip:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 2 IP
+    description: Static IPv4 address of the second worker node (inside Network CIDR).
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$
+        error_message: "Must be a valid IPv4 address"
+    display:
+      group: nodes
+      index: 5
+
+  worker3_vm_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 3 VM Name
+    description: VM name and hostname of the third worker node. Lowercase letters, numbers, and hyphens.
+    default: k8s-worker-03
+    constraints:
+      - pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+        error_message: "1-63 lowercase letters, numbers, or hyphens, not starting/ending with a hyphen"
+    display:
+      group: nodes
+      index: 6
+
+  worker3_ip:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 3 IP
+    description: Static IPv4 address of the third worker node (inside Network CIDR).
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$
+        error_message: "Must be a valid IPv4 address"
+    display:
+      group: nodes
+      index: 7
+
+  worker4_vm_name:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 4 VM Name
+    description: VM name and hostname of the fourth worker node. Lowercase letters, numbers, and hyphens.
+    default: k8s-worker-04
+    constraints:
+      - pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+        error_message: "1-63 lowercase letters, numbers, or hyphens, not starting/ending with a hyphen"
+    display:
+      group: nodes
+      index: 8
+
+  worker4_ip:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Worker 4 IP
+    description: Static IPv4 address of the fourth worker node (inside Network CIDR).
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$
+        error_message: "Must be a valid IPv4 address"
+    display:
+      group: nodes
+      index: 9
+
+  # -- Guest OS Credentials ----------------------------------------------
+
+  vm_username:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Guest User
+    description: Existing sudo-capable user in the template VM, used for SSH by the orchestrator and between nodes.
+    default: demo
+    constraints:
+      - pattern: ^[a-z_][a-z0-9_-]{0,31}$
+        error_message: "Must be a valid Linux username"
+    display:
+      group: credentials
+      index: 0
+
+  vm_password_secret:
+    type: secret_key
+    hidden: false
+    allow_update: false
+    display_label: Guest User Password Secret
+    description: Secret (type password or general) whose value is the guest user's plain-text password - used for SSH and sudo.
+    display:
+      group: credentials
+      index: 1
+
+  # -- Kubernetes --------------------------------------------------------
+
+  k8s_version:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Kubernetes Version
+    description: Kubernetes minor release installed from pkgs.k8s.io.
+    default: "1.31"
+    constraints:
+      - valid_values:
+          - "1.30"
+          - "1.31"
+          - "1.32"
+        error_message: "Select a supported Kubernetes minor version"
+    display:
+      group: kubernetes
+      index: 0
+
+  pod_network_cidr:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: Pod Network CIDR
+    description: Pod network CIDR passed to kubeadm. Must match the CNI manifest (Flannel default is 10.244.0.0/16) and not overlap the node network.
+    default: 10.244.0.0/16
+    constraints:
+      - pattern: ^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\/(3[0-2]|[12]?\d)$
+        error_message: "Must be a valid CIDR block (e.g. 10.244.0.0/16)"
+    display:
+      group: kubernetes
+      index: 1
+
+  cni_manifest_url:
+    type: string
+    hidden: false
+    allow_update: false
+    display_label: CNI Manifest URL
+    description: URL of the CNI manifest applied on the control plane (pinned Flannel release).
+    default: https://github.com/flannel-io/flannel/releases/download/v0.26.1/kube-flannel.yml
+    constraints:
+      - pattern: ^https://\S+\.ya?ml$
+        error_message: "Must be an https URL to a YAML manifest"
+    display:
+      group: kubernetes
+      index: 2

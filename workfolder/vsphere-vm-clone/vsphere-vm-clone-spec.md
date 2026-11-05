@@ -1,0 +1,1 @@
+create a blueprint to clone an exsisting VM in vcenter, user input vcenter login info and clone source VM name, host name, and clone target VM name, target datacenter, cluster, host name, target datastore name

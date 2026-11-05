@@ -1,0 +1,12 @@
+{
+  "vsphere_secret_name": "vcenter-vCenter01-20260505145203-2104f5",
+  "source_vm_name": "LinuxVM-01",
+  "source_host_name": "esxi04.demo.local",
+  "target_vm_name": "LinuxVM-02",
+  "target_datacenter": "Migration Datacenter",
+  "target_cluster": "Cluster",
+  "target_host_name": "esxi04.demo.local",
+  "target_datastore": "esxi04-local-256GB",
+  "resource_pool_name": "Resources",
+  "power_on": true
+}

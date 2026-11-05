@@ -1,0 +1,559 @@
+tosca_definitions_version: dell_1_1
+
+imports:
+  - dell/types/types.yaml
+  - plugin:vsphere-plugin?version= >=3.0.0.0,<4.0.0.0
+  - plugin:fabric-plugin?version= >=3.3.0.0,<4.0.0.0
+
+dsl_definitions:
+
+  connection_config: &connection_config
+    username: { get_secret: [{ get_input: vsphere_secret_name }, username] }
+    password: { get_secret: [{ get_input: vsphere_secret_name }, password] }
+    host: { get_secret: [{ get_input: vsphere_secret_name }, host] }
+    port: { get_secret: [{ get_input: vsphere_secret_name }, port] }
+    datacenter_name: { get_input: target_datacenter }
+    resource_pool_name: { get_input: resource_pool_name }
+    auto_placement: { get_secret: [{ get_input: vsphere_secret_name }, auto_placement] }
+    allow_insecure: { get_secret: [{ get_input: vsphere_secret_name }, allow_insecure] }
+    certificate_data: { get_secret: [{ get_input: vsphere_secret_name }, certificate_data] }
+
+  # Properties shared by every cloned node (placement, sizing, agentless).
+  vm_common: &vm_common
+    connection_config: *connection_config
+    agent_config:
+      install_method: none
+    wait_ip: false
+    enable_start_vm: true
+    allowed_clusters:
+      - { get_input: target_cluster }
+    allowed_hosts:
+      - { get_input: target_host_name }
+    allowed_datastores:
+      - { get_input: target_datastore }
+
+  # SSH credentials shared by every Fabric operation (host_string is per node).
+  ssh_auth: &ssh_auth
+    user: { get_input: vm_username }
+    password: { get_secret: { get_input: vm_password_secret } }
+    sudo_password: { get_secret: { get_input: vm_password_secret } }
+    port: 22
+    connect_timeout: 30
+
+  # Environment shared by every node script.
+  cluster_env: &cluster_env
+    SSH_USER: { get_input: vm_username }
+    VM_PASSWORD: { get_secret: { get_input: vm_password_secret } }
+    K8S_VERSION: { get_input: k8s_version }
+    NETWORK_CIDR: { get_input: network_cidr }
+    GATEWAY: { get_input: gateway }
+    DNS_SERVER: { get_input: [dns_servers, 0] }
+    POD_NETWORK_CIDR: { get_input: pod_network_cidr }
+    CNI_MANIFEST_URL: { get_input: cni_manifest_url }
+    MASTER_NAME: { get_input: master_vm_name }
+    MASTER_IP: { get_input: master_ip }
+    WORKER1_NAME: { get_input: worker1_vm_name }
+    WORKER1_IP: { get_input: worker1_ip }
+    WORKER2_NAME: { get_input: worker2_vm_name }
+    WORKER2_IP: { get_input: worker2_ip }
+    WORKER3_NAME: { get_input: worker3_vm_name }
+    WORKER3_IP: { get_input: worker3_ip }
+    WORKER4_NAME: { get_input: worker4_vm_name }
+    WORKER4_IP: { get_input: worker4_ip }
+
+node_templates:
+
+  # ---------------------------------------------------------------------
+  # Infrastructure: five clones of the template VM
+  # ---------------------------------------------------------------------
+
+  master_vm:
+    type: dell.nodes.vsphere.Server
+    properties:
+      <<: *vm_common
+      networking:
+        domain: { get_input: domain }
+        dns_servers: { get_input: dns_servers }
+        connect_networks:
+          - name: { get_input: network_name }
+            switch_distributed: { get_input: switch_distributed }
+            management: true
+            use_dhcp: false
+            ip: { get_input: master_ip }
+            network: { get_input: network_cidr }
+            gateway: { get_input: gateway }
+      server:
+        name: { get_input: master_vm_name }
+        clone_vm: { get_input: source_vm_name }
+        cpus: { get_input: vm_cpus }
+        memory: { get_input: vm_memory_mb }
+        add_scale_suffix: false
+    interfaces:
+      dell.interfaces.host:
+        get_state: {}
+
+  worker1_vm:
+    type: dell.nodes.vsphere.Server
+    properties:
+      <<: *vm_common
+      networking:
+        domain: { get_input: domain }
+        dns_servers: { get_input: dns_servers }
+        connect_networks:
+          - name: { get_input: network_name }
+            switch_distributed: { get_input: switch_distributed }
+            management: true
+            use_dhcp: false
+            ip: { get_input: worker1_ip }
+            network: { get_input: network_cidr }
+            gateway: { get_input: gateway }
+      server:
+        name: { get_input: worker1_vm_name }
+        clone_vm: { get_input: source_vm_name }
+        cpus: { get_input: vm_cpus }
+        memory: { get_input: vm_memory_mb }
+        add_scale_suffix: false
+    interfaces:
+      dell.interfaces.host:
+        get_state: {}
+
+  worker2_vm:
+    type: dell.nodes.vsphere.Server
+    properties:
+      <<: *vm_common
+      networking:
+        domain: { get_input: domain }
+        dns_servers: { get_input: dns_servers }
+        connect_networks:
+          - name: { get_input: network_name }
+            switch_distributed: { get_input: switch_distributed }
+            management: true
+            use_dhcp: false
+            ip: { get_input: worker2_ip }
+            network: { get_input: network_cidr }
+            gateway: { get_input: gateway }
+      server:
+        name: { get_input: worker2_vm_name }
+        clone_vm: { get_input: source_vm_name }
+        cpus: { get_input: vm_cpus }
+        memory: { get_input: vm_memory_mb }
+        add_scale_suffix: false
+    interfaces:
+      dell.interfaces.host:
+        get_state: {}
+
+  worker3_vm:
+    type: dell.nodes.vsphere.Server
+    properties:
+      <<: *vm_common
+      networking:
+        domain: { get_input: domain }
+        dns_servers: { get_input: dns_servers }
+        connect_networks:
+          - name: { get_input: network_name }
+            switch_distributed: { get_input: switch_distributed }
+            management: true
+            use_dhcp: false
+            ip: { get_input: worker3_ip }
+            network: { get_input: network_cidr }
+            gateway: { get_input: gateway }
+      server:
+        name: { get_input: worker3_vm_name }
+        clone_vm: { get_input: source_vm_name }
+        cpus: { get_input: vm_cpus }
+        memory: { get_input: vm_memory_mb }
+        add_scale_suffix: false
+    interfaces:
+      dell.interfaces.host:
+        get_state: {}
+
+  worker4_vm:
+    type: dell.nodes.vsphere.Server
+    properties:
+      <<: *vm_common
+      networking:
+        domain: { get_input: domain }
+        dns_servers: { get_input: dns_servers }
+        connect_networks:
+          - name: { get_input: network_name }
+            switch_distributed: { get_input: switch_distributed }
+            management: true
+            use_dhcp: false
+            ip: { get_input: worker4_ip }
+            network: { get_input: network_cidr }
+            gateway: { get_input: gateway }
+      server:
+        name: { get_input: worker4_vm_name }
+        clone_vm: { get_input: source_vm_name }
+        cpus: { get_input: vm_cpus }
+        memory: { get_input: vm_memory_mb }
+        add_scale_suffix: false
+    interfaces:
+      dell.interfaces.host:
+        get_state: {}
+
+  # ---------------------------------------------------------------------
+  # OS preparation: hostname, swap, kernel settings, containerd, kubeadm
+  # ---------------------------------------------------------------------
+
+  master_prep:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          max_retries: 20
+          retry_interval: 30
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_prepare.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: master_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: master_vm_name }
+                NODE_IP: { get_input: master_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_cleanup.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: master_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: master_vm_name }
+                NODE_IP: { get_input: master_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: master_vm
+
+  worker1_prep:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          max_retries: 20
+          retry_interval: 30
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_prepare.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker1_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker1_vm_name }
+                NODE_IP: { get_input: worker1_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_cleanup.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker1_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker1_vm_name }
+                NODE_IP: { get_input: worker1_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: worker1_vm
+
+  worker2_prep:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          max_retries: 20
+          retry_interval: 30
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_prepare.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker2_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker2_vm_name }
+                NODE_IP: { get_input: worker2_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_cleanup.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker2_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker2_vm_name }
+                NODE_IP: { get_input: worker2_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: worker2_vm
+
+  worker3_prep:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          max_retries: 20
+          retry_interval: 30
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_prepare.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker3_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker3_vm_name }
+                NODE_IP: { get_input: worker3_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_cleanup.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker3_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker3_vm_name }
+                NODE_IP: { get_input: worker3_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: worker3_vm
+
+  worker4_prep:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          max_retries: 20
+          retry_interval: 30
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_prepare.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker4_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker4_vm_name }
+                NODE_IP: { get_input: worker4_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/node_cleanup.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker4_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker4_vm_name }
+                NODE_IP: { get_input: worker4_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: worker4_vm
+
+  # ---------------------------------------------------------------------
+  # Kubernetes: control plane init, then workers join
+  # ---------------------------------------------------------------------
+
+  k8s_control_plane:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/master_init.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: master_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: master_vm_name }
+                NODE_IP: { get_input: master_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/master_reset.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: master_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: master_vm_name }
+                NODE_IP: { get_input: master_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: master_prep
+
+  k8s_worker1:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_join.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker1_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker1_vm_name }
+                NODE_IP: { get_input: worker1_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_reset.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker1_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker1_vm_name }
+                NODE_IP: { get_input: worker1_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: k8s_control_plane
+      - type: dell.relationships.depends_on
+        target: worker1_prep
+
+  k8s_worker2:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_join.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker2_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker2_vm_name }
+                NODE_IP: { get_input: worker2_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_reset.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker2_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker2_vm_name }
+                NODE_IP: { get_input: worker2_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: k8s_control_plane
+      - type: dell.relationships.depends_on
+        target: worker2_prep
+
+  k8s_worker3:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_join.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker3_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker3_vm_name }
+                NODE_IP: { get_input: worker3_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_reset.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker3_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker3_vm_name }
+                NODE_IP: { get_input: worker3_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: k8s_control_plane
+      - type: dell.relationships.depends_on
+        target: worker3_prep
+
+  k8s_worker4:
+    type: dell.nodes.Root
+    interfaces:
+      dell.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_join.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker4_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker4_vm_name }
+                NODE_IP: { get_input: worker4_ip }
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            script_path: scripts/worker_reset.sh
+            hide_output: [running]
+            fabric_env:
+              <<: *ssh_auth
+              host_string: { get_input: worker4_ip }
+            process:
+              env:
+                <<: *cluster_env
+                NODE_NAME: { get_input: worker4_vm_name }
+                NODE_IP: { get_input: worker4_ip }
+    relationships:
+      - type: dell.relationships.depends_on
+        target: k8s_control_plane
+      - type: dell.relationships.depends_on
+        target: worker4_prep

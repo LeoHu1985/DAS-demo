@@ -1,0 +1,10 @@
+{
+  "blueprint_id": "vsphere-vm-clone",
+  "blueprint_version": "1.0.1",
+  "inputs": {
+    "network_name": "VM Network",
+    "switch_distributed": false,
+    "use_dhcp": true
+  },
+  "preview": true
+}

@@ -1,0 +1,25 @@
+# Changelog for vsphere-k8s-cluster
+1.0.0:
+  - ticket: BP-001
+    developer: blueprint-assist
+    description: Initial release - clone an Ubuntu template VM into 3 nodes on one ESXi host and bootstrap a kubeadm Kubernetes cluster (1 control plane, 2 workers, containerd, Flannel)
+1.0.1:
+  - ticket: BP-002
+    developer: blueprint-assist
+    description: Accept a general-type secret for the guest user password (remove the password-type constraint on vm_password_secret)
+1.0.2:
+  - ticket: BP-003
+    developer: blueprint-assist
+    description: Install conntrack and socat during node preparation - kubeadm 1.31 preflight fails with "conntrack not found in system path" because the pkgs.k8s.io packages no longer pull them in
+1.2.0:
+  - ticket: BP-006
+    developer: blueprint-assist
+    description: Scale the cluster to 5 nodes (1 control plane + 4 workers) - add worker4_vm_name and worker4_ip inputs, a fifth cloned VM, and its prep and join steps
+1.1.0:
+  - ticket: BP-005
+    developer: blueprint-assist
+    description: Scale the cluster to 4 nodes (1 control plane + 3 workers) - add worker3_vm_name and worker3_ip inputs, a third cloned VM, and its prep and join steps
+1.0.3:
+  - ticket: BP-004
+    developer: blueprint-assist
+    description: Pin the static IP/gateway/DNS in the node's netplan and disable cloud-init network and hostname management during node prep, so nodes keep their IP and name after a reboot instead of falling back to DHCP

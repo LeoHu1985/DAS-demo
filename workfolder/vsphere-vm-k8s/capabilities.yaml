@@ -1,0 +1,40 @@
+capabilities:
+
+  cluster_endpoint:
+    description: Kubernetes API server endpoint
+    value: { concat: ["https://", { get_input: master_ip }, ":6443"] }
+
+  kubeconfig_location:
+    description: Location of the admin kubeconfig on the control-plane node
+    value: { concat: [{ get_input: vm_username }, "@", { get_input: master_ip }, ":~/.kube/config"] }
+
+  master_node:
+    description: Control-plane node name and IP
+    value:
+      name: { get_input: master_vm_name }
+      ip: { get_input: master_ip }
+      vsphere_id: { get_attribute: [master_vm, vsphere_server_id] }
+
+  worker_nodes:
+    description: Worker node names and IPs
+    value:
+      - name: { get_input: worker1_vm_name }
+        ip: { get_input: worker1_ip }
+        vsphere_id: { get_attribute: [worker1_vm, vsphere_server_id] }
+      - name: { get_input: worker2_vm_name }
+        ip: { get_input: worker2_ip }
+        vsphere_id: { get_attribute: [worker2_vm, vsphere_server_id] }
+      - name: { get_input: worker3_vm_name }
+        ip: { get_input: worker3_ip }
+        vsphere_id: { get_attribute: [worker3_vm, vsphere_server_id] }
+      - name: { get_input: worker4_vm_name }
+        ip: { get_input: worker4_ip }
+        vsphere_id: { get_attribute: [worker4_vm, vsphere_server_id] }
+
+  kubernetes_version:
+    description: Kubernetes minor version installed on the cluster
+    value: { get_input: k8s_version }
+
+  esxi_host:
+    description: ESXi host running all cluster nodes
+    value: { get_attribute: [master_vm, hypervisor_hostname] }

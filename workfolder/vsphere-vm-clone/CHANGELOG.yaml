@@ -1,0 +1,13 @@
+# Changelog for vsphere-vm-clone
+1.0.0:
+  - ticket: BP-001
+    developer: blueprint-assist
+    description: Initial release - clone an existing vCenter VM to a target datacenter, cluster, host, and datastore
+1.0.1:
+  - ticket: BP-002
+    developer: blueprint-assist
+    description: Add network inputs (port group, distributed switch, DHCP/static IP) - the vSphere plugin strips the source VM's NICs on clone, so the clone previously had no network adapter
+1.0.2:
+  - ticket: BP-003
+    developer: blueprint-assist
+    description: Disable host get_state so install does not fail with "Management IP addresses not yet assigned" when the cloned guest has not configured its new NIC
